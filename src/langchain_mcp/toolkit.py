@@ -20,7 +20,7 @@ class MCPToolkit(BaseToolkit):
     """
 
     session: ClientSession
-    tools: ListToolsResult | None = None
+    _tools: ListToolsResult | None = None
 
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
@@ -30,19 +30,19 @@ class MCPToolkit(BaseToolkit):
 
     async def initialize(self) -> None:
         """
-        Initialize the toolkit by setting up the session and retrieving the list of tools.
+        Initialize the session and retrieve tools list.
         """
-        if self.tools is None:
+        if self._tools is None:
             await self.session.initialize()
-            self.tools = await self.session.list_tools()
+            self._tools = await self.session.list_tools()
 
     @t.override
     async def get_tools(self) -> list[BaseTool]:
         """
         Retrieve the list of tools. If the toolkit has not been initialized, raise a RuntimeError.
         """
-        if self.tools is None:
-            raise RuntimeError("MCPToolkit has not been initialized. Call `initialize` method first.")
+        if self._tools is None:
+            raise RuntimeError("Must initialize the toolkit first.")
         return [
             MCPTool(
                 toolkit=self,
@@ -51,7 +51,7 @@ class MCPToolkit(BaseToolkit):
                 description=tool.description or "",
                 args_schema=create_schema_model(tool.inputSchema),
             )
-            for tool in self.tools.tools
+            for tool in self._tools.tools
         ]
 
 
@@ -89,7 +89,7 @@ class MCPTool(BaseTool):
         self.session = session
 
     @t.override
-    def _run(self, *args: Any, **kwargs: Any) -> Any:
+    def _run(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         warnings.warn(
             "Invoke this tool asynchronously using `ainvoke`. This method exists only to satisfy tests.",
             stacklevel=1,
@@ -97,7 +97,7 @@ class MCPTool(BaseTool):
         return asyncio.run(self._arun(*args, **kwargs))
 
     @t.override
-    async def _arun(self, *args: Any, **kwargs: Any) -> Any:
+    async def _arun(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         result: CallToolResult = await self.session.call_tool(self.name, arguments=kwargs)
         content: str = pydantic_core.to_json(result.content).decode()
         if result.isError:
