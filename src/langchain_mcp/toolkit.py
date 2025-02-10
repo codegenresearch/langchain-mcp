@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Type, Union
 
 import pydantic
 import pydantic_core
+import typing_extensions as t
 from langchain_core.tools.base import BaseTool, BaseToolkit, ToolException
 from mcp import ClientSession, ListToolsResult, Tool
 
@@ -37,7 +38,7 @@ class MCPToolkit(BaseToolkit):
             self._tools = await self.session.list_tools()
 
     @t.override
-    async def get_tools(self) -> List[BaseTool]:
+    async def get_tools(self) -> list[BaseTool]:
         if self._tools is None:
             raise RuntimeError("Toolkit has not been initialized. Call `initialize` method first.")
         return [
@@ -52,7 +53,7 @@ class MCPToolkit(BaseToolkit):
         ]
 
 
-def create_schema_model(schema: Dict[str, Any]) -> Type[pydantic.BaseModel]:
+def create_schema_model(schema: dict[str, Any]) -> Type[pydantic.BaseModel]:
     # Create a new model class that returns our JSON schema.
     # LangChain requires a BaseModel class.
     class Schema(pydantic.BaseModel):
@@ -66,7 +67,7 @@ def create_schema_model(schema: Dict[str, Any]) -> Type[pydantic.BaseModel]:
             ref_template: str = pydantic.json_schema.DEFAULT_REF_TEMPLATE,
             schema_generator: Type[pydantic.json_schema.GenerateJsonSchema] = pydantic.json_schema.GenerateJsonSchema,
             mode: pydantic.json_schema.JsonSchemaMode = "validation",
-        ) -> Dict[str, Any]:
+        ) -> dict[str, Any]:
             return schema
 
     return Schema
