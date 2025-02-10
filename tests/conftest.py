@@ -39,6 +39,7 @@ def mcptoolkit(request):
         isError=False,
     )
     toolkit = MCPToolkit(session=session_mock)
+    toolkit.initialize()  # Ensure the toolkit is initialized
     yield toolkit
     if issubclass(request.cls, ToolsIntegrationTests):
         session_mock.call_tool.assert_called_with("read_file", arguments={"path": "LICENSE"})
@@ -46,8 +47,7 @@ def mcptoolkit(request):
 
 @pytest.fixture(scope="class")
 async def mcptool(request, mcptoolkit):
-    await mcptoolkit.initialize()  # Ensure the toolkit is initialized
     tools = mcptoolkit.get_tools()
     request.cls.tools = tools
-    request.cls.tool = tools[0]  # Directly assign the first tool
-    yield request.cls.tool
+    tool = tools[0]  # Retrieve the first tool
+    yield tool
