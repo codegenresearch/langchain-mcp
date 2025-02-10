@@ -18,7 +18,7 @@ class MCPToolkit(BaseToolkit):
     MCP server toolkit
     """
 
-    session: ClientSession = pydantic.Field(..., description="The MCP session used to obtain the tools")
+    session: ClientSession
     """The MCP session used to obtain the tools"""
 
     _tools: ListToolsResult | None = None
@@ -31,7 +31,7 @@ class MCPToolkit(BaseToolkit):
 
     async def initialize(self) -> None:
         """
-        Initialize the toolkit by setting up the tools.
+        Initialize the toolkit.
         """
         if self._tools is None:
             await self.session.initialize()
@@ -44,9 +44,6 @@ class MCPToolkit(BaseToolkit):
 
         Returns:
             list[BaseTool]: A list of tools.
-
-        Raises:
-            RuntimeError: If the toolkit has not been initialized.
         """
         if self._tools is None:
             raise RuntimeError("Must initialize the toolkit first")
@@ -72,8 +69,6 @@ def create_schema_model(schema: dict[str, t.Any]) -> type[pydantic.BaseModel]:
     Returns:
         type[pydantic.BaseModel]: A Pydantic model class.
     """
-    # Create a new model class that returns our JSON schema.
-    # LangChain requires a BaseModel class.
     class Schema(pydantic.BaseModel):
         model_config = pydantic.ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
