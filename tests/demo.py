@@ -27,7 +27,7 @@ async def run(tools: list[BaseTool], prompt: str) -> str:
     tools_map = {tool.name: tool for tool in tools}
     tools_model = model.bind_tools(tools)
     messages: list[BaseMessage] = [HumanMessage(prompt)]
-    ai_message = await tools_model.ainvoke(messages)
+    ai_message = t.cast(AIMessage, await tools_model.ainvoke(messages))
     messages.append(ai_message)
     
     for tool_call in ai_message.tool_calls:
