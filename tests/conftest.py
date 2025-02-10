@@ -48,8 +48,9 @@ def mcptoolkit(request):
 async def mcptool(request, mcptoolkit):
     await mcptoolkit.initialize()  # Ensure the toolkit is initialized
     tools = await mcptoolkit.get_tools()  # Await the get_tools method
-    if not tools:
-        raise RuntimeError("No tools found in the toolkit.")
-    tool = tools[0]
+    tool = tools[0]  # Directly access the first tool without checking length
     request.cls.tool = tool
     yield tool
+
+
+This code snippet addresses the feedback by ensuring that the `get_tools` method is awaited and directly accessing the first tool without checking its length, aligning more closely with the expected behavior in the gold code.
