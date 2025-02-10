@@ -20,6 +20,7 @@ class MCPToolkit(BaseToolkit):
     """
 
     session: ClientSession
+    """The MCP session used to obtain the tools"""
     _tools: ListToolsResult | None = None
 
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
@@ -30,7 +31,7 @@ class MCPToolkit(BaseToolkit):
 
     async def initialize(self) -> None:
         """
-        Initialize the session and retrieve tools list.
+        Initialize the session and retrieve tools list
         """
         if self._tools is None:
             await self.session.initialize()
@@ -42,7 +43,7 @@ class MCPToolkit(BaseToolkit):
         Retrieve the list of tools. If the toolkit has not been initialized, raise a RuntimeError.
         """
         if self._tools is None:
-            raise RuntimeError("Must initialize the toolkit first.")
+            raise RuntimeError("Must initialize the toolkit first")
         return [
             MCPTool(
                 toolkit=self,
@@ -52,6 +53,7 @@ class MCPToolkit(BaseToolkit):
                 args_schema=create_schema_model(tool.inputSchema),
             )
             for tool in self._tools.tools
+            # list_tools returns a PaginatedResult, but I don't see a way to pass the cursor to retrieve more tools
         ]
 
 
@@ -61,6 +63,7 @@ def create_schema_model(schema: dict[str, t.Any]) -> type[pydantic.BaseModel]:
     class Schema(pydantic.BaseModel):
         model_config = pydantic.ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
+        @t.override
         @classmethod
         def model_json_schema(
             cls,
@@ -91,7 +94,7 @@ class MCPTool(BaseTool):
     @t.override
     def _run(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         warnings.warn(
-            "Invoke this tool asynchronously using `ainvoke`. This method exists only to satisfy tests.",
+            "Invoke this tool asynchronously using `ainvoke`. This method exists only to satisfy tests",
             stacklevel=1,
         )
         return asyncio.run(self._arun(*args, **kwargs))
