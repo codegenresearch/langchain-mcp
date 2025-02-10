@@ -12,7 +12,7 @@
 import asyncio
 import pathlib
 import sys
-import typing as t
+from typing import List
 
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from langchain_core.output_parsers import StrOutputParser
@@ -22,26 +22,22 @@ from mcp.client.stdio import stdio_client
 from langchain_mcp import MCPToolkit
 from langchain_core.tools import BaseTool
 
-async def run(tools: t.List[BaseTool], model: ChatGroq, prompt: str) -> str:
-    tools_map: t.Dict[str, BaseTool] = {tool.name: tool for tool in tools}
+async def run(tools: List[BaseTool], prompt: str) -> str:
+    model = ChatGroq(model="llama-3.1-8b-instant", stop_sequences=None)  # requires GROQ_API_KEY
+    tools_map = {tool.name: tool for tool in tools}
     tools_model = model.bind_tools(tools)
-    messages: t.List[BaseMessage] = [HumanMessage(prompt)]
-    response = await tools_model.ainvoke(messages)
-    messages.append(response)
+    messages: List[BaseMessage] = [HumanMessage(prompt)]
+    ai_message: AIMessage = await tools_model.ainvoke(messages)
+    messages.append(ai_message)
     
-    for tool_call in response.tool_calls:
-        selected_tool: t.Optional[BaseTool] = tools_map.get(tool_call["name"].lower())
-        if selected_tool:
-            tool_msg: AIMessage = t.cast(AIMessage, await selected_tool.ainvoke(tool_call))
-            messages.append(tool_msg)
-        else:
-            print(f"Tool {tool_call['name']} not found.")
+    for tool_call in ai_message.tool_calls:
+        selected_tool = tools_map[tool_call["name"].lower()]
+        tool_msg: AIMessage = await selected_tool.ainvoke(tool_call)
+        messages.append(tool_msg)
     
-    result: str = await (tools_model | StrOutputParser()).ainvoke(messages)
-    return result
+    return await (tools_model | StrOutputParser()).ainvoke(messages)
 
 async def main(prompt: str) -> None:
-    model = ChatGroq(model="llama-3.1-8b-instant", stop_sequences=None)  # requires GROQ_API_KEY
     server_params = StdioServerParameters(
         command="npx",
         args=["-y", "@modelcontextprotocol/server-filesystem", str(pathlib.Path(__file__).parent.parent)],
@@ -51,8 +47,7 @@ async def main(prompt: str) -> None:
             toolkit = MCPToolkit(session=session)
             await toolkit.initialize()
             tools = toolkit.get_tools()
-            result = await run(tools, model, prompt)
-            print(result)
+            print(await run(tools, prompt))
 
 if __name__ == "__main__":
     prompt = sys.argv[1] if len(sys.argv) > 1 else "Read and summarize the file ./LICENSE"
