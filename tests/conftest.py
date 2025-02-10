@@ -12,7 +12,7 @@ from langchain_mcp import MCPToolkit
 
 
 @pytest.fixture(scope="class")
-async def mcptoolkit(request):
+def mcptoolkit(request):
     session_mock = mock.AsyncMock(spec=ClientSession)
     session_mock.list_tools.return_value = ListToolsResult(
         tools=[
@@ -39,11 +39,6 @@ async def mcptoolkit(request):
         isError=False,
     )
     toolkit = MCPToolkit(session=session_mock)
-    await toolkit.initialize()  # Ensure the toolkit is initialized
-    tools = toolkit.get_tools()
-    if not tools:
-        raise RuntimeError("No tools found in the toolkit.")
-    request.cls.tools = tools
     yield toolkit
     if issubclass(request.cls, ToolsIntegrationTests):
         session_mock.call_tool.assert_called_with("read_file", arguments={"path": "LICENSE"})
@@ -51,7 +46,12 @@ async def mcptoolkit(request):
 
 @pytest.fixture(scope="class")
 async def mcptool(request, mcptoolkit):
-    if not hasattr(request.cls, 'tools') or not request.cls.tools:
+    await mcptoolkit.initialize()  # Ensure the toolkit is initialized
+    tools = mcptoolkit.get_tools()
+    if not tools:
+        raise RuntimeError("No tools found in the toolkit.")
+    request.cls.tools = tools
+    if not request.cls.tools:
         raise RuntimeError("Tools are not initialized.")
     tool = request.cls.tools[0]
     request.cls.tool = tool
