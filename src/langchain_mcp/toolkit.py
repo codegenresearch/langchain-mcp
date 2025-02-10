@@ -4,7 +4,7 @@
 import asyncio
 import warnings
 from collections.abc import Callable
-from typing import Any, Optional, Type
+from typing import Any, Type
 
 import pydantic
 import pydantic_core
@@ -19,8 +19,8 @@ class MCPToolkit(BaseToolkit):
     MCP server toolkit
     """
 
-    session: ClientSession = pydantic.Field(..., description="The MCP session used to obtain the tools")
-    _tools: Optional[ListToolsResult] = pydantic.Field(None, description="The list of tools obtained from the session")
+    session: ClientSession
+    tools: ListToolsResult | None = None
 
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
@@ -32,16 +32,16 @@ class MCPToolkit(BaseToolkit):
         """
         Initialize the toolkit by setting up the session and retrieving the list of tools.
         """
-        if self._tools is None:
+        if self.tools is None:
             await self.session.initialize()
-            self._tools = await self.session.list_tools()
+            self.tools = await self.session.list_tools()
 
     @t.override
     async def get_tools(self) -> list[BaseTool]:
         """
         Retrieve the list of tools. If the toolkit has not been initialized, raise a RuntimeError.
         """
-        if self._tools is None:
+        if self.tools is None:
             raise RuntimeError("MCPToolkit has not been initialized. Call `initialize` method first.")
         return [
             MCPTool(
@@ -51,11 +51,11 @@ class MCPToolkit(BaseToolkit):
                 description=tool.description or "",
                 args_schema=create_schema_model(tool.inputSchema),
             )
-            for tool in self._tools.tools
+            for tool in self.tools.tools
         ]
 
 
-def create_schema_model(schema: dict[str, t.Any]) -> Type[pydantic.BaseModel]:
+def create_schema_model(schema: dict[str, t.Any]) -> type[pydantic.BaseModel]:
     # Create a new model class that returns our JSON schema.
     # LangChain requires a BaseModel class.
     class Schema(pydantic.BaseModel):
@@ -81,9 +81,9 @@ class MCPTool(BaseTool):
 
     toolkit: MCPToolkit
     session: ClientSession
-    handle_tool_error: Optional[bool | str | Callable[[ToolException], str]] = True
+    handle_tool_error: bool | str | Callable[[ToolException], str] | None = True
 
-    def __init__(self, toolkit: MCPToolkit, session: ClientSession, name: str, description: str, args_schema: Type[pydantic.BaseModel]):
+    def __init__(self, toolkit: MCPToolkit, session: ClientSession, name: str, description: str, args_schema: type[pydantic.BaseModel]):
         super().__init__(name=name, description=description, args_schema=args_schema)
         self.toolkit = toolkit
         self.session = session
@@ -106,6 +106,6 @@ class MCPTool(BaseTool):
 
     @t.override
     @property
-    def tool_call_schema(self) -> Type[pydantic.BaseModel]:
+    def tool_call_schema(self) -> type[pydantic.BaseModel]:
         assert self.args_schema is not None  # noqa: S101
         return self.args_schema
