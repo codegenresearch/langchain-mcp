@@ -52,7 +52,7 @@ class MCPToolkit(BaseToolkit):
         ]
 
 
-def create_schema_model(schema: Dict[str, t.Any]) -> type[pydantic.BaseModel]:
+def create_schema_model(schema: dict[str, t.Any]) -> type[pydantic.BaseModel]:
     # Create a new model class that returns our JSON schema.
     # LangChain requires a BaseModel class.
     class Schema(pydantic.BaseModel):
@@ -65,7 +65,7 @@ def create_schema_model(schema: Dict[str, t.Any]) -> type[pydantic.BaseModel]:
             ref_template: str = pydantic.json_schema.DEFAULT_REF_TEMPLATE,
             schema_generator: type[pydantic.json_schema.GenerateJsonSchema] = pydantic.json_schema.GenerateJsonSchema,
             mode: pydantic.json_schema.JsonSchemaMode = "validation",
-        ) -> Dict[str, t.Any]:
+        ) -> dict[str, t.Any]:
             return schema
 
     return Schema
@@ -77,12 +77,12 @@ class MCPTool(BaseTool):
     """
 
     session: ClientSession
-    handle_tool_error: Union[bool, str, Callable[[ToolException], str], None] = True
+    handle_tool_error: bool | str | Callable[[ToolException], str] | None = True
 
     @t.override
     def _run(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         warnings.warn(
-            "Invoke this tool asynchronously using `ainvoke`. This method exists only to satisfy tests",
+            "Invoke this tool asynchronously using `ainvoke`. This method exists only to satisfy tests.",
             stacklevel=1,
         )
         return asyncio.run(self._arun(*args, **kwargs))
