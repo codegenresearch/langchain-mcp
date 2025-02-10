@@ -12,7 +12,7 @@
 import asyncio
 import pathlib
 import sys
-from typing import List
+import typing as t
 
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from langchain_core.output_parsers import StrOutputParser
@@ -22,17 +22,17 @@ from mcp.client.stdio import stdio_client
 from langchain_mcp import MCPToolkit
 from langchain_core.tools import BaseTool
 
-async def run(tools: List[BaseTool], prompt: str) -> str:
+async def run(tools: list[BaseTool], prompt: str) -> str:
     model = ChatGroq(model="llama-3.1-8b-instant", stop_sequences=None)  # requires GROQ_API_KEY
     tools_map = {tool.name: tool for tool in tools}
     tools_model = model.bind_tools(tools)
-    messages: List[BaseMessage] = [HumanMessage(prompt)]
-    ai_message: AIMessage = await tools_model.ainvoke(messages)
+    messages: list[BaseMessage] = [HumanMessage(prompt)]
+    ai_message: AIMessage = t.cast(AIMessage, await tools_model.ainvoke(messages))
     messages.append(ai_message)
     
     for tool_call in ai_message.tool_calls:
         selected_tool = tools_map[tool_call["name"].lower()]
-        tool_msg: AIMessage = await selected_tool.ainvoke(tool_call)
+        tool_msg: AIMessage = t.cast(AIMessage, await selected_tool.ainvoke(tool_call))
         messages.append(tool_msg)
     
     return await (tools_model | StrOutputParser()).ainvoke(messages)
@@ -47,7 +47,8 @@ async def main(prompt: str) -> None:
             toolkit = MCPToolkit(session=session)
             await toolkit.initialize()
             tools = toolkit.get_tools()
-            print(await run(tools, prompt))
+            response = await run(tools, prompt)
+            print(response)
 
 if __name__ == "__main__":
     prompt = sys.argv[1] if len(sys.argv) > 1 else "Read and summarize the file ./LICENSE"
