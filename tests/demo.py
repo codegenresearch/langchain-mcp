@@ -24,10 +24,8 @@ from langchain_mcp import MCPToolkit
 from mcp.types import Tool
 
 
-async def run(session: ClientSession, model: ChatGroq, prompt: str) -> None:
-    toolkit = MCPToolkit(session=session)
-    await toolkit.initialize()
-    tools = await toolkit.get_tools()
+async def run(tools: t.List[Tool], prompt: str) -> str:
+    model = ChatGroq(model="llama-3.1-8b-instant", stop_sequences=None)  # requires GROQ_API_KEY
     tools_map: t.Dict[str, Tool] = {tool.name: tool for tool in tools}
     tools_model = model.bind_tools(tools)
 
@@ -37,22 +35,29 @@ async def run(session: ClientSession, model: ChatGroq, prompt: str) -> None:
     for tool_call in messages[-1].tool_calls:
         selected_tool = tools_map.get(tool_call["name"].lower())
         if selected_tool:
-            tool_msg = await selected_tool.ainvoke(tool_call)
-            messages.append(tool_msg)
+            try:
+                tool_msg = await selected_tool.ainvoke(tool_call)
+                messages.append(tool_msg)
+            except Exception as e:
+                print(f"Error invoking tool {tool_call['name']}: {e}")
+                messages.append(AIMessage(content=f"Error: {e}"))
 
     result = await (tools_model | StrOutputParser()).ainvoke(messages)
-    print(t.cast(AIMessage, result).content)
+    return t.cast(AIMessage, result).content
 
 
 async def main(prompt: str) -> None:
-    model = ChatGroq(model="llama-3.1-8b-instant", stop_sequences=None)  # requires GROQ_API_KEY
     server_params = StdioServerParameters(
         command="npx",
         args=["-y", "@modelcontextprotocol/server-filesystem", str(pathlib.Path(__file__).parent.parent)],
     )
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
-            await run(session, model, prompt)
+            toolkit = MCPToolkit(session=session)
+            await toolkit.initialize()
+            tools = await toolkit.get_tools()
+            result = await run(tools, prompt)
+            print(result)
 
 
 if __name__ == "__main__":
