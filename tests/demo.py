@@ -14,7 +14,7 @@ import pathlib
 import sys
 import typing as t
 
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
 from mcp import ClientSession, StdioServerParameters
@@ -23,7 +23,10 @@ from mcp.client.stdio import stdio_client
 from langchain_mcp import MCPToolkit, Tool
 
 
-async def run(model: ChatGroq, tools_map: t.Dict[str, Tool], prompt: str) -> str:
+async def run(tools: t.List[Tool], prompt: str) -> str:
+    model = ChatGroq(model="llama-3.1-8b-instant")  # requires GROQ_API_KEY
+    model.bind_tools(tools)
+    tools_map = {tool.name.lower(): tool for tool in tools}
     messages: t.List[BaseMessage] = [HumanMessage(prompt)]
     messages.append(await model.ainvoke(messages))
     for tool_call in messages[-1].tool_calls:
@@ -37,7 +40,6 @@ async def run(model: ChatGroq, tools_map: t.Dict[str, Tool], prompt: str) -> str
 
 
 async def main(prompt: str) -> None:
-    model = ChatGroq(model="llama-3.1-8b-instant")  # requires GROQ_API_KEY
     server_params = StdioServerParameters(
         command="npx",
         args=["-y", "@modelcontextprotocol/server-filesystem", str(pathlib.Path(__file__).parent.parent)],
@@ -45,10 +47,9 @@ async def main(prompt: str) -> None:
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
             toolkit = MCPToolkit(session=session)
+            await toolkit.initialize()
             tools = await toolkit.get_tools()
-            tools_map = {tool.name.lower(): tool for tool in tools}
-            model.bind_tools(tools)
-            result = await run(model, tools_map, prompt)
+            result = await run(tools, prompt)
             print(result)
 
 
