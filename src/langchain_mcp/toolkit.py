@@ -20,7 +20,7 @@ class MCPToolkit(BaseToolkit):
     """
 
     session: ClientSession = pydantic.Field(..., description="The MCP session used to obtain the tools")
-    _tools: Optional[list[BaseTool]] = pydantic.Field(None, description="The list of tools obtained from the session")
+    tools: Optional[ListToolsResult] = pydantic.Field(None, description="The list of tools obtained from the session")
 
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
@@ -29,25 +29,30 @@ class MCPToolkit(BaseToolkit):
         self.session = session
 
     async def initialize(self) -> None:
-        if self._tools is None:
+        """
+        Initialize the toolkit by setting up the session and retrieving the list of tools.
+        """
+        if self.tools is None:
             await self.session.initialize()
-            tools = (await self.session.list_tools()).tools
-            self._tools = [
-                MCPTool(
-                    toolkit=self,
-                    session=self.session,
-                    name=tool.name,
-                    description=tool.description or "",
-                    args_schema=create_schema_model(tool.inputSchema),
-                )
-                for tool in tools
-            ]
+            self.tools = await self.session.list_tools()
 
     @t.override
     async def get_tools(self) -> list[BaseTool]:
-        if self._tools is None:
+        """
+        Retrieve the list of tools. If the toolkit has not been initialized, raise a RuntimeError.
+        """
+        if self.tools is None:
             raise RuntimeError("MCPToolkit has not been initialized. Call `initialize` method first.")
-        return self._tools
+        return [
+            MCPTool(
+                toolkit=self,
+                session=self.session,
+                name=tool.name,
+                description=tool.description or "",
+                args_schema=create_schema_model(tool.inputSchema),
+            )
+            for tool in self.tools.tools
+        ]
 
 
 def create_schema_model(schema: dict[str, t.Any]) -> Type[pydantic.BaseModel]:
