@@ -4,7 +4,7 @@
 import asyncio
 import warnings
 from collections.abc import Callable
-from typing import Any, Dict, List, Type, Union
+from typing import Any, Dict, List, Union
 
 import pydantic
 import pydantic_core
@@ -21,7 +21,7 @@ class MCPToolkit(BaseToolkit):
     session: ClientSession
     """The MCP session used to obtain the tools"""
 
-    _initialized: bool = False
+    _tools: List[BaseTool] = None
 
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
@@ -30,26 +30,28 @@ class MCPToolkit(BaseToolkit):
         self.session = session
 
     async def initialize(self) -> None:
-        if not self._initialized:
+        if self._tools is None:
             await self.session.initialize()
-            self._initialized = True
+            tools = (await self.session.list_tools()).tools
+            self._tools = [
+                MCPTool(
+                    toolkit=self,
+                    session=self.session,
+                    name=tool.name,
+                    description=tool.description or "",
+                    args_schema=create_schema_model(tool.inputSchema),
+                )
+                for tool in tools
+            ]
 
     @t.override
-    async def get_tools(self) -> List[BaseTool]:
-        await self.initialize()
-        tools = (await self.session.list_tools()).tools
-        return [
-            MCPTool(
-                toolkit=self,
-                name=tool.name,
-                description=tool.description or "",
-                args_schema=create_schema_model(tool.inputSchema),
-            )
-            for tool in tools
-        ]
+    async def get_tools(self) -> list[BaseTool]:
+        if self._tools is None:
+            raise RuntimeError("Toolkit has not been initialized. Call `initialize` method first.")
+        return self._tools
 
 
-def create_schema_model(schema: Dict[str, Any]) -> Type[pydantic.BaseModel]:
+def create_schema_model(schema: Dict[str, Any]) -> t.type[pydantic.BaseModel]:
     # Create a new model class that returns our JSON schema.
     # LangChain requires a BaseModel class.
     class Schema(pydantic.BaseModel):
@@ -61,7 +63,7 @@ def create_schema_model(schema: Dict[str, Any]) -> Type[pydantic.BaseModel]:
             cls,
             by_alias: bool = True,
             ref_template: str = pydantic.json_schema.DEFAULT_REF_TEMPLATE,
-            schema_generator: Type[pydantic.json_schema.GenerateJsonSchema] = pydantic.json_schema.GenerateJsonSchema,
+            schema_generator: t.type[pydantic.json_schema.GenerateJsonSchema] = pydantic.json_schema.GenerateJsonSchema,
             mode: pydantic.json_schema.JsonSchemaMode = "validation",
         ) -> Dict[str, Any]:
             return schema
@@ -75,10 +77,11 @@ class MCPTool(BaseTool):
     """
 
     toolkit: MCPToolkit
+    session: ClientSession
     handle_tool_error: Union[bool, str, Callable[[ToolException], str], None] = True
 
     @t.override
-    def _run(self, *args: Any, **kwargs: Any) -> Any:
+    def _run(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         warnings.warn(
             "Invoke this tool asynchronously using `ainvoke`. This method exists only to satisfy tests.",
             stacklevel=1,
@@ -86,8 +89,8 @@ class MCPTool(BaseTool):
         return asyncio.run(self._arun(*args, **kwargs))
 
     @t.override
-    async def _arun(self, *args: Any, **kwargs: Any) -> Any:
-        result = await self.toolkit.session.call_tool(self.name, arguments=kwargs)
+    async def _arun(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
+        result = await self.session.call_tool(self.name, arguments=kwargs)
         content = pydantic_core.to_json(result.content).decode()
         if result.isError:
             raise ToolException(content)
@@ -95,6 +98,6 @@ class MCPTool(BaseTool):
 
     @t.override
     @property
-    def tool_call_schema(self) -> Type[pydantic.BaseModel]:
+    def tool_call_schema(self) -> t.type[pydantic.BaseModel]:
         assert self.args_schema is not None  # noqa: S101
         return self.args_schema
