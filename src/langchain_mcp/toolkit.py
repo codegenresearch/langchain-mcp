@@ -4,7 +4,7 @@
 import asyncio
 import warnings
 from collections.abc import Callable
-from typing import Any, Dict, List, Union
+from typing import Any, List, Union
 
 import pydantic
 import pydantic_core
@@ -50,7 +50,6 @@ class MCPToolkit(BaseToolkit):
             raise RuntimeError("Must initialize the toolkit first")
         return [
             MCPTool(
-                toolkit=self,
                 session=self.session,
                 name=tool.name,
                 description=tool.description or "",
@@ -60,12 +59,12 @@ class MCPToolkit(BaseToolkit):
         ]
 
 
-def create_schema_model(schema: Dict[str, Any]) -> type[pydantic.BaseModel]:
+def create_schema_model(schema: dict[str, t.Any]) -> type[pydantic.BaseModel]:
     """
     Create a Pydantic model class from a JSON schema.
 
     Args:
-        schema (Dict[str, Any]): The JSON schema.
+        schema (dict[str, t.Any]): The JSON schema.
 
     Returns:
         type[pydantic.BaseModel]: A Pydantic model class.
@@ -81,7 +80,7 @@ def create_schema_model(schema: Dict[str, Any]) -> type[pydantic.BaseModel]:
             ref_template: str = pydantic.json_schema.DEFAULT_REF_TEMPLATE,
             schema_generator: type[pydantic.json_schema.GenerateJsonSchema] = pydantic.json_schema.GenerateJsonSchema,
             mode: pydantic.json_schema.JsonSchemaMode = "validation",
-        ) -> Dict[str, Any]:
+        ) -> dict[str, t.Any]:
             return schema
 
     return Schema
@@ -92,7 +91,6 @@ class MCPTool(BaseTool):
     MCP server tool
     """
 
-    toolkit: MCPToolkit
     session: ClientSession
     handle_tool_error: Union[bool, str, Callable[[ToolException], str], None] = True
 
