@@ -4,7 +4,7 @@
 import asyncio
 import warnings
 from collections.abc import Callable
-from typing import Any, Type
+from typing import Any, List
 
 import pydantic
 import pydantic_core
@@ -20,8 +20,7 @@ class MCPToolkit(BaseToolkit):
     """
 
     session: ClientSession
-    """The MCP session used to obtain the tools"""
-    _tools: ListToolsResult | None = None
+    _tools: ListToolsResult = None
 
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
@@ -29,7 +28,7 @@ class MCPToolkit(BaseToolkit):
         super().__init__()
         self.session = session
 
-    async def initialize(self) -> None:
+    async def initialize(self):
         """
         Initialize the session and retrieve tools list
         """
@@ -47,13 +46,11 @@ class MCPToolkit(BaseToolkit):
         return [
             MCPTool(
                 toolkit=self,
-                session=self.session,
                 name=tool.name,
                 description=tool.description or "",
                 args_schema=create_schema_model(tool.inputSchema),
             )
             for tool in self._tools.tools
-            # list_tools returns a PaginatedResult, but I don't see a way to pass the cursor to retrieve more tools
         ]
 
 
@@ -69,7 +66,7 @@ def create_schema_model(schema: dict[str, t.Any]) -> type[pydantic.BaseModel]:
             cls,
             by_alias: bool = True,
             ref_template: str = pydantic.json_schema.DEFAULT_REF_TEMPLATE,
-            schema_generator: Type[pydantic.json_schema.GenerateJsonSchema] = pydantic.json_schema.GenerateJsonSchema,
+            schema_generator: type[pydantic.json_schema.GenerateJsonSchema] = pydantic.json_schema.GenerateJsonSchema,
             mode: pydantic.json_schema.JsonSchemaMode = "validation",
         ) -> dict[str, t.Any]:
             return schema
@@ -83,13 +80,11 @@ class MCPTool(BaseTool):
     """
 
     toolkit: MCPToolkit
-    session: ClientSession
     handle_tool_error: bool | str | Callable[[ToolException], str] | None = True
 
-    def __init__(self, toolkit: MCPToolkit, session: ClientSession, name: str, description: str, args_schema: type[pydantic.BaseModel]):
+    def __init__(self, toolkit: MCPToolkit, name: str, description: str, args_schema: type[pydantic.BaseModel]):
         super().__init__(name=name, description=description, args_schema=args_schema)
         self.toolkit = toolkit
-        self.session = session
 
     @t.override
     def _run(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
@@ -101,7 +96,7 @@ class MCPTool(BaseTool):
 
     @t.override
     async def _arun(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
-        result: CallToolResult = await self.session.call_tool(self.name, arguments=kwargs)
+        result: CallToolResult = await self.toolkit.session.call_tool(self.name, arguments=kwargs)
         content: str = pydantic_core.to_json(result.content).decode()
         if result.isError:
             raise ToolException(content)
