@@ -27,12 +27,12 @@ async def run(tools: list[BaseTool], prompt: str) -> str:
     tools_map = {tool.name: tool for tool in tools}
     tools_model = model.bind_tools(tools)
     messages: list[BaseMessage] = [HumanMessage(prompt)]
-    ai_message: AIMessage = t.cast(AIMessage, await tools_model.ainvoke(messages))
+    ai_message = await tools_model.ainvoke(messages)
     messages.append(ai_message)
     
     for tool_call in ai_message.tool_calls:
         selected_tool = tools_map[tool_call["name"].lower()]
-        tool_msg: AIMessage = t.cast(AIMessage, await selected_tool.ainvoke(tool_call))
+        tool_msg = await selected_tool.ainvoke(tool_call)
         messages.append(tool_msg)
     
     return await (tools_model | StrOutputParser()).ainvoke(messages)
