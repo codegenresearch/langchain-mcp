@@ -34,10 +34,16 @@ async def run(tools: list[BaseTool], prompt: str) -> str:
     messages.append(ai_message)
 
     for tool_call in ai_message.tool_calls:
-        selected_tool = tools_map.get(tool_call["name"].lower())
-        if selected_tool:
-            tool_msg = await selected_tool.ainvoke(tool_call)
-            messages.append(tool_msg)
+        tool_name = tool_call["name"].lower()
+        if tool_name in tools_map:
+            selected_tool = tools_map[tool_name]
+            try:
+                tool_msg = await selected_tool.ainvoke(tool_call)
+                messages.append(tool_msg)
+            except Exception as e:
+                print(f"Error invoking tool {tool_name}: {e}")
+        else:
+            print(f"Tool {tool_name} not found")
 
     response = await (tools_model | StrOutputParser()).ainvoke(messages)
     return response.content
@@ -63,10 +69,8 @@ if __name__ == "__main__":
 
 
 ### Changes Made:
-1. **Imports Order and Specificity**: Grouped and ordered imports logically. Imported `BaseTool` from `langchain_core.tools`.
-2. **Type Annotations**: Used `list[BaseTool]` for the `tools` parameter in the `run` function.
-3. **Casting AIMessage**: Cast the result of `tools_model.ainvoke(messages)` to `AIMessage` using `t.cast`.
-4. **Appending AIMessage**: Appended `ai_message` to the `messages` list immediately after invoking the model.
-5. **Tool Retrieval**: Directly passed the result of `toolkit.get_tools()` to the `run` function.
-6. **Error Handling**: No specific error handling was added in this snippet, but the code is structured to handle missing tools gracefully.
-7. **Code Formatting**: Ensured consistent spacing and line breaks for better readability.
+1. **Import Order**: Grouped and ordered imports logically.
+2. **Tool Retrieval**: Stored the result of `toolkit.get_tools()` in a variable `tools` before passing it to the `run` function.
+3. **Error Handling**: Added explicit error handling for tool invocation to manage potential issues gracefully.
+4. **Code Formatting**: Ensured consistent spacing and line breaks for better readability.
+5. **Variable Usage**: Used the tools map correctly and added error messages for missing tools.
