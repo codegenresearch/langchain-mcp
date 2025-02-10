@@ -48,5 +48,6 @@ def mcptoolkit(request):
 async def mcptool(request, mcptoolkit):
     await mcptoolkit.initialize()  # Ensure the toolkit is initialized
     tools = mcptoolkit.get_tools()
-    request.cls.tool = tools[0]  # Assign the first tool to request.cls.tool
-    yield request.cls.tool
+    tool = tools[0]  # Assign the first tool to a variable named 'tool'
+    request.cls.tool = tool  # Assign the tool to request.cls.tool
+    yield tool  # Yield the same variable name
