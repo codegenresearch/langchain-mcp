@@ -13,7 +13,7 @@
 import asyncio
 import pathlib
 import sys
-from typing import List, Dict, Any
+import typing as t
 
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from langchain_core.output_parsers import StrOutputParser
@@ -24,16 +24,14 @@ from langchain_mcp import MCPToolkit
 from mcp.types import Tool
 
 
-async def process_tools_and_messages(
-    session: ClientSession, model: ChatGroq, prompt: str
-) -> str:
+async def run(session: ClientSession, model: ChatGroq, prompt: str) -> None:
     toolkit = MCPToolkit(session=session)
     await toolkit.initialize()
     tools = await toolkit.get_tools()
-    tools_map: Dict[str, Tool] = {tool.name: tool for tool in tools}
+    tools_map: t.Dict[str, Tool] = {tool.name: tool for tool in tools}
     tools_model = model.bind_tools(tools)
 
-    messages: List[BaseMessage] = [HumanMessage(content=prompt)]
+    messages: t.List[BaseMessage] = [HumanMessage(content=prompt)]
     messages.append(await tools_model.ainvoke(messages))
 
     for tool_call in messages[-1].tool_calls:
@@ -43,10 +41,10 @@ async def process_tools_and_messages(
             messages.append(tool_msg)
 
     result = await (tools_model | StrOutputParser()).ainvoke(messages)
-    return result.content if isinstance(result, AIMessage) else str(result)
+    print(t.cast(AIMessage, result).content)
 
 
-async def main(prompt: str) -> str:
+async def main(prompt: str) -> None:
     model = ChatGroq(model="llama-3.1-8b-instant", stop_sequences=None)  # requires GROQ_API_KEY
     server_params = StdioServerParameters(
         command="npx",
@@ -54,11 +52,9 @@ async def main(prompt: str) -> str:
     )
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
-            result = await process_tools_and_messages(session, model, prompt)
-            return result
+            await run(session, model, prompt)
 
 
 if __name__ == "__main__":
     prompt = sys.argv[1] if len(sys.argv) > 1 else "Read and summarize the file ./LICENSE"
-    result = asyncio.run(main(prompt))
-    print(result)
+    asyncio.run(main(prompt))
