@@ -48,11 +48,6 @@ def mcptoolkit(request):
 async def mcptool(request, mcptoolkit):
     await mcptoolkit.initialize()  # Ensure the toolkit is initialized
     tools = mcptoolkit.get_tools()
-    if not tools:
-        raise RuntimeError("No tools found in the toolkit.")
     request.cls.tools = tools
-    if not request.cls.tools:
-        raise RuntimeError("Tools are not initialized.")
-    tool = request.cls.tools[0]
-    request.cls.tool = tool
-    yield tool
+    request.cls.tool = tools[0]  # Directly assign the first tool
+    yield request.cls.tool
