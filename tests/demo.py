@@ -9,11 +9,10 @@
 # ]
 # ///
 
-
 import asyncio
 import pathlib
 import sys
-import typing as t
+from typing import List
 
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from langchain_core.output_parsers import StrOutputParser
@@ -24,26 +23,22 @@ from langchain_mcp import MCPToolkit
 from mcp.types import Tool
 
 
-async def run(tools: t.List[Tool], prompt: str) -> str:
+async def run(tools: List[Tool], prompt: str) -> str:
     model = ChatGroq(model="llama-3.1-8b-instant", stop_sequences=None)  # requires GROQ_API_KEY
-    tools_map: t.Dict[str, Tool] = {tool.name: tool for tool in tools}
+    tools_map = {tool.name: tool for tool in tools}
     tools_model = model.bind_tools(tools)
 
-    messages: t.List[BaseMessage] = [HumanMessage(content=prompt)]
+    messages: List[BaseMessage] = [HumanMessage(content=prompt)]
     messages.append(await tools_model.ainvoke(messages))
 
     for tool_call in messages[-1].tool_calls:
         selected_tool = tools_map.get(tool_call["name"].lower())
         if selected_tool:
-            try:
-                tool_msg = await selected_tool.ainvoke(tool_call)
-                messages.append(tool_msg)
-            except Exception as e:
-                print(f"Error invoking tool {tool_call['name']}: {e}")
-                messages.append(AIMessage(content=f"Error: {e}"))
+            tool_msg = await selected_tool.ainvoke(tool_call)
+            messages.append(tool_msg)
 
-    result = await (tools_model | StrOutputParser()).ainvoke(messages)
-    return t.cast(AIMessage, result).content
+    response = await (tools_model | StrOutputParser()).ainvoke(messages)
+    return response.content
 
 
 async def main(prompt: str) -> None:
@@ -56,8 +51,8 @@ async def main(prompt: str) -> None:
             toolkit = MCPToolkit(session=session)
             await toolkit.initialize()
             tools = await toolkit.get_tools()
-            result = await run(tools, prompt)
-            print(result)
+            response = await run(tools, prompt)
+            print(response)
 
 
 if __name__ == "__main__":
