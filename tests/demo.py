@@ -12,7 +12,7 @@
 import asyncio
 import pathlib
 import sys
-from typing import List
+import typing as t
 
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from langchain_core.output_parsers import StrOutputParser
@@ -23,15 +23,15 @@ from langchain_mcp import MCPToolkit
 from mcp.types import Tool
 
 
-async def run(tools: List[Tool], prompt: str) -> str:
+async def run(tools: t.List[Tool], prompt: str) -> str:
     model = ChatGroq(model="llama-3.1-8b-instant", stop_sequences=None)  # requires GROQ_API_KEY
     tools_map = {tool.name: tool for tool in tools}
     tools_model = model.bind_tools(tools)
 
-    messages: List[BaseMessage] = [HumanMessage(content=prompt)]
-    messages.append(await tools_model.ainvoke(messages))
+    messages: t.List[BaseMessage] = [HumanMessage(prompt)]
+    ai_message = await tools_model.ainvoke(messages)
 
-    for tool_call in messages[-1].tool_calls:
+    for tool_call in ai_message.tool_calls:
         selected_tool = tools_map.get(tool_call["name"].lower())
         if selected_tool:
             tool_msg = await selected_tool.ainvoke(tool_call)
