@@ -32,21 +32,15 @@ class MCPToolkit(BaseToolkit):
     async def initialize(self) -> None:
         """
         Initialize the toolkit by setting up the session and fetching tools.
-
-        This method ensures that the session is initialized and the tools are fetched
-        from the MCP server. It should be called before using the toolkit.
         """
         if self._tools is None:
             await self.session.initialize()
             self._tools = await self.session.list_tools()
 
     @t.override
-    async def get_tools(self) -> List[BaseTool]:
+    async def get_tools(self) -> list[BaseTool]:
         """
         Get the list of tools available in the toolkit.
-
-        Returns:
-            List[BaseTool]: A list of tools.
 
         Note:
             The `list_tools` method returns a `PaginatedResult`, but there is no way
@@ -103,12 +97,9 @@ class MCPTool(BaseTool):
     handle_tool_error: Union[bool, str, Callable[[ToolException], str], None] = True
 
     @t.override
-    def _run(self, *args: Any, **kwargs: Any) -> Any:
+    def _run(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         """
         Run the tool synchronously. This method exists only to satisfy tests.
-
-        Returns:
-            Any: The result of the tool execution.
 
         Warnings:
             This method is deprecated. Use `ainvoke` to run the tool asynchronously.
@@ -120,7 +111,7 @@ class MCPTool(BaseTool):
         return asyncio.run(self._arun(*args, **kwargs))
 
     @t.override
-    async def _arun(self, *args: Any, **kwargs: Any) -> Any:
+    async def _arun(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         """
         Run the tool asynchronously.
 
@@ -129,7 +120,7 @@ class MCPTool(BaseTool):
             **kwargs: Keyword arguments.
 
         Returns:
-            Any: The result of the tool execution.
+            t.Any: The result of the tool execution.
 
         Raises:
             ToolException: If the tool execution results in an error.
