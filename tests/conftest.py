@@ -48,17 +48,11 @@ def mcptoolkit(request):
 
 @pytest.fixture(scope="class")
 async def mcptool(request, mcptoolkit):
-    if not hasattr(request.cls, 'toolkit'):
-        raise RuntimeError("Toolkit is not initialized.")
-    tools = await mcptoolkit.get_tools()
-    if not tools:
-        raise RuntimeError("No tools found in the toolkit.")
-    tool = tools[0]
+    await mcptoolkit.initialize()
+    tool = (await mcptoolkit.get_tools())[0]
     request.cls.tool = tool
     yield tool
 
 
 def invoke_tool(tool, arguments):
-    if not tool:
-        raise ValueError("Tool is not initialized.")
     return tool.invoke(arguments)
