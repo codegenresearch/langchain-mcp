@@ -4,7 +4,7 @@
 import asyncio
 import warnings
 from collections.abc import Callable
-from typing import Any, Dict, Union
+from typing import Any, Dict, List, Union
 
 import pydantic
 import pydantic_core
@@ -31,19 +31,26 @@ class MCPToolkit(BaseToolkit):
 
     async def initialize(self) -> None:
         """
-        Initialize the toolkit.
+        Initialize the toolkit by setting up the session and fetching tools.
+
+        This method ensures that the session is initialized and the tools are fetched
+        from the MCP server. It should be called before using the toolkit.
         """
         if self._tools is None:
             await self.session.initialize()
             self._tools = await self.session.list_tools()
 
     @t.override
-    async def get_tools(self) -> list[BaseTool]:
+    async def get_tools(self) -> List[BaseTool]:
         """
         Get the list of tools available in the toolkit.
 
         Returns:
-            list[BaseTool]: A list of tools.
+            List[BaseTool]: A list of tools.
+
+        Note:
+            The `list_tools` method returns a `PaginatedResult`, but there is no way
+            to pass the cursor to retrieve more tools in the current implementation.
         """
         if self._tools is None:
             raise RuntimeError("Must initialize the toolkit first")
@@ -59,12 +66,12 @@ class MCPToolkit(BaseToolkit):
         ]
 
 
-def create_schema_model(schema: dict[str, t.Any]) -> type[pydantic.BaseModel]:
+def create_schema_model(schema: Dict[str, Any]) -> type[pydantic.BaseModel]:
     """
     Create a Pydantic model class from a JSON schema.
 
     Args:
-        schema (dict[str, t.Any]): The JSON schema.
+        schema (Dict[str, Any]): The JSON schema.
 
     Returns:
         type[pydantic.BaseModel]: A Pydantic model class.
@@ -80,7 +87,7 @@ def create_schema_model(schema: dict[str, t.Any]) -> type[pydantic.BaseModel]:
             ref_template: str = pydantic.json_schema.DEFAULT_REF_TEMPLATE,
             schema_generator: type[pydantic.json_schema.GenerateJsonSchema] = pydantic.json_schema.GenerateJsonSchema,
             mode: pydantic.json_schema.JsonSchemaMode = "validation",
-        ) -> dict[str, t.Any]:
+        ) -> Dict[str, Any]:
             return schema
 
     return Schema
