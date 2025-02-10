@@ -47,6 +47,9 @@ def mcptoolkit(request):
 @pytest.fixture(scope="class")
 async def mcptool(request, mcptoolkit):
     await mcptoolkit.initialize()  # Ensure the toolkit is initialized
-    tool = (await mcptoolkit.get_tools())[0]
+    tools = await mcptoolkit.get_tools()  # Await the get_tools method
+    if not tools:
+        raise RuntimeError("No tools found in the toolkit.")
+    tool = tools[0]
     request.cls.tool = tool
     yield tool
