@@ -24,18 +24,18 @@ from langchain_mcp import MCPToolkit
 
 
 async def run(tools: list[BaseTool], prompt: str) -> str:
+    tools_map = {tool.name.lower(): tool for tool in tools}
     model = ChatGroq(model="llama-3.1-8b-instant", stop_sequences=None)  # requires GROQ_API_KEY
     tools_model = model.bind_tools(tools)
-    tools_map = {tool.name: tool for tool in tools}
     messages: list[BaseMessage] = [HumanMessage(prompt)]
     messages.append(await tools_model.ainvoke(messages))
     for tool_call in messages[-1].tool_calls:
-        selected_tool = tools_map.get(tool_call["name"])
+        selected_tool = tools_map.get(tool_call["name"].lower())
         if selected_tool is None:
             raise ValueError(f"Tool '{tool_call['name']}' not found.")
         tool_msg = await selected_tool.ainvoke(tool_call)
         messages.append(tool_msg)
-    ai_message = cast(AIMessage, messages[-1])
+    ai_message = t.cast(AIMessage, messages[-1])
     return await (tools_model | StrOutputParser()).ainvoke(messages)
 
 
