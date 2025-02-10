@@ -12,7 +12,7 @@ from langchain_mcp import MCPToolkit
 
 
 @pytest.fixture(scope="class")
-def mcptoolkit(request):
+async def mcptoolkit(request):
     session_mock = mock.AsyncMock(spec=ClientSession)
     session_mock.list_tools.return_value = ListToolsResult(
         tools=[
@@ -39,6 +39,7 @@ def mcptoolkit(request):
         isError=False,
     )
     toolkit = MCPToolkit(session=session_mock)
+    await toolkit.initialize()  # Ensure the toolkit is initialized
     tools = toolkit.get_tools()
     if not tools:
         raise RuntimeError("No tools found in the toolkit.")
