@@ -45,12 +45,12 @@ def mcptoolkit(request):
 
 
 @pytest.fixture(scope="class")
-async def mcptool(request, mcptoolkit):
-    await mcptoolkit.initialize()  # Ensure the toolkit is initialized
-    tools = await mcptoolkit.get_tools()  # Await the get_tools method
-    tool = tools[0]  # Directly access the first tool without checking length
+def mcptool(request, mcptoolkit):
+    mcptoolkit.initialize()  # Ensure the toolkit is initialized
+    tools = mcptoolkit.get_tools()  # Directly call get_tools without awaiting
+    tool = tools[0]  # Directly access the first tool
     request.cls.tool = tool
     yield tool
 
 
-This code snippet addresses the feedback by ensuring that the `get_tools` method is awaited and directly accessing the first tool without checking its length, aligning more closely with the expected behavior in the gold code.
+This code snippet addresses the feedback by ensuring that the `get_tools` method is called directly without awaiting it and by directly accessing the first tool from the result of `get_tools()` without any additional checks or awaits.
