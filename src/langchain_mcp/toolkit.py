@@ -4,11 +4,10 @@
 import asyncio
 import warnings
 from collections.abc import Callable
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Type, Union
 
 import pydantic
 import pydantic_core
-import typing_extensions as t
 from langchain_core.tools.base import BaseTool, BaseToolkit, ToolException
 from mcp import ClientSession, ListToolsResult, Tool
 
@@ -21,7 +20,7 @@ class MCPToolkit(BaseToolkit):
     session: ClientSession
     """The MCP session used to obtain the tools"""
 
-    _tools: List[BaseTool] = None
+    _tools: ListToolsResult | None = None
 
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
@@ -30,28 +29,30 @@ class MCPToolkit(BaseToolkit):
         self.session = session
 
     async def initialize(self) -> None:
+        """
+        Initialize the toolkit by setting up the session and retrieving the list of tools.
+        """
         if self._tools is None:
             await self.session.initialize()
-            tools = (await self.session.list_tools()).tools
-            self._tools = [
-                MCPTool(
-                    toolkit=self,
-                    session=self.session,
-                    name=tool.name,
-                    description=tool.description or "",
-                    args_schema=create_schema_model(tool.inputSchema),
-                )
-                for tool in tools
-            ]
+            self._tools = await self.session.list_tools()
 
     @t.override
-    async def get_tools(self) -> list[BaseTool]:
+    async def get_tools(self) -> List[BaseTool]:
         if self._tools is None:
             raise RuntimeError("Toolkit has not been initialized. Call `initialize` method first.")
-        return self._tools
+        return [
+            MCPTool(
+                toolkit=self,
+                session=self.session,
+                name=tool.name,
+                description=tool.description or "",
+                args_schema=create_schema_model(tool.inputSchema),
+            )
+            for tool in self._tools.tools
+        ]
 
 
-def create_schema_model(schema: Dict[str, Any]) -> t.type[pydantic.BaseModel]:
+def create_schema_model(schema: Dict[str, Any]) -> Type[pydantic.BaseModel]:
     # Create a new model class that returns our JSON schema.
     # LangChain requires a BaseModel class.
     class Schema(pydantic.BaseModel):
@@ -63,7 +64,7 @@ def create_schema_model(schema: Dict[str, Any]) -> t.type[pydantic.BaseModel]:
             cls,
             by_alias: bool = True,
             ref_template: str = pydantic.json_schema.DEFAULT_REF_TEMPLATE,
-            schema_generator: t.type[pydantic.json_schema.GenerateJsonSchema] = pydantic.json_schema.GenerateJsonSchema,
+            schema_generator: Type[pydantic.json_schema.GenerateJsonSchema] = pydantic.json_schema.GenerateJsonSchema,
             mode: pydantic.json_schema.JsonSchemaMode = "validation",
         ) -> Dict[str, Any]:
             return schema
@@ -81,7 +82,7 @@ class MCPTool(BaseTool):
     handle_tool_error: Union[bool, str, Callable[[ToolException], str], None] = True
 
     @t.override
-    def _run(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
+    def _run(self, *args: Any, **kwargs: Any) -> Any:
         warnings.warn(
             "Invoke this tool asynchronously using `ainvoke`. This method exists only to satisfy tests.",
             stacklevel=1,
@@ -89,7 +90,7 @@ class MCPTool(BaseTool):
         return asyncio.run(self._arun(*args, **kwargs))
 
     @t.override
-    async def _arun(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
+    async def _arun(self, *args: Any, **kwargs: Any) -> Any:
         result = await self.session.call_tool(self.name, arguments=kwargs)
         content = pydantic_core.to_json(result.content).decode()
         if result.isError:
@@ -98,6 +99,6 @@ class MCPTool(BaseTool):
 
     @t.override
     @property
-    def tool_call_schema(self) -> t.type[pydantic.BaseModel]:
+    def tool_call_schema(self) -> Type[pydantic.BaseModel]:
         assert self.args_schema is not None  # noqa: S101
         return self.args_schema
