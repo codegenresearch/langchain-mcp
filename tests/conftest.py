@@ -45,12 +45,18 @@ def mcptoolkit(request):
 
 
 @pytest.fixture(scope="class")
-def mcptool(request, mcptoolkit):
-    mcptoolkit.initialize()  # Ensure the toolkit is initialized
-    tools = mcptoolkit.get_tools()  # Directly call get_tools without awaiting
+async def mcptool(request, mcptoolkit):
+    await mcptoolkit.initialize()  # Ensure the toolkit is initialized
+    tools = await mcptoolkit.get_tools()  # Await the get_tools method
     tool = tools[0]  # Directly access the first tool
     request.cls.tool = tool
     yield tool
 
 
-This code snippet addresses the feedback by ensuring that the `get_tools` method is called directly without awaiting it and by directly accessing the first tool from the result of `get_tools()` without any additional checks or awaits.
+This code snippet addresses the feedback by:
+
+1. Defining the `mcptool` fixture as an asynchronous fixture using `async def`.
+2. Awaiting the `initialize()` method of the `mcptoolkit` to ensure it completes before accessing the tools.
+3. Awaiting the `get_tools()` method to ensure it completes before accessing the tools.
+
+These changes should resolve the syntax error and align the code more closely with the expected behavior.
