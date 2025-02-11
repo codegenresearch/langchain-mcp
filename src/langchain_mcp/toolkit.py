@@ -33,7 +33,7 @@ class MCPToolkit(BaseToolkit):
     @t.override
     async def initialize(self) -> None:
         """
-        Initialize the toolkit by fetching tools from the MCP session.
+        Initialize the toolkit by setting up the session and fetching tools.
         """
         if self._tools is None:
             await self.session.initialize()
@@ -42,7 +42,7 @@ class MCPToolkit(BaseToolkit):
     @t.override
     async def get_tools(self) -> list[BaseTool]:
         if self._tools is None:
-            raise RuntimeError("Must initialize the toolkit first.")
+            raise RuntimeError("Toolkit must be initialized first.")
         # list_tools returns a PaginatedResult, but I don't see a way to pass the cursor to retrieve more tools
         return [
             MCPTool(
@@ -102,7 +102,7 @@ class MCPTool(BaseTool):
         return asyncio.run(self._arun(*args, **kwargs))
 
     @t.override
-    async def _arun(self, *args: Any, **kwargs: Any) -> t.Any:
+    async def _arun(self, *args: Any, **kwargs: Any) -> str:
         result: CallToolResult = await self.session.call_tool(self.name, arguments=kwargs)
         content: str = pydantic_core.to_json(result.content).decode()
         if result.isError:
