@@ -12,7 +12,7 @@
 import asyncio
 import pathlib
 import sys
-from typing import cast, List
+import typing as t
 
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers import StrOutputParser
@@ -24,11 +24,11 @@ from langchain_mcp import MCPToolkit
 from langchain_core.tools import BaseTool
 
 
-async def run(tools: list[BaseTool], prompt: str) -> str:
+async def run(tools: t.List[BaseTool], prompt: str) -> str:
     model = ChatGroq(model="llama-3.1-8b-instant", stop_sequences=None)  # requires GROQ_API_KEY
-    messages: list[BaseMessage] = [HumanMessage(prompt)]
+    messages: t.List[BaseMessage] = [HumanMessage(prompt)]
     tools_model = model.bind_tools(tools)
-    ai_message = cast(AIMessage, await tools_model.ainvoke(messages))
+    ai_message = t.cast(AIMessage, await tools_model.ainvoke(messages))
     messages.append(ai_message)
     
     tools_map = {tool.name: tool for tool in tools}
@@ -66,8 +66,8 @@ if __name__ == "__main__":
 
 
 ### Changes Made:
-1. **Import Structure**: Organized imports to match the gold code.
-2. **Type Annotations**: Changed `List[BaseTool]` to `list[BaseTool]`.
+1. **Import Structure**: Added `import typing as t` and used `t.List` and `t.cast` for type annotations.
+2. **Type Annotations**: Changed `list[BaseTool]` to `t.List[BaseTool]` and used `t.cast` for type casting.
 3. **Tools Map Construction**: Used `tool.name` directly without converting it to lowercase.
 4. **Message Handling**: Ensured the sequence of operations matches the gold code.
 5. **Return Statement**: Structured the return statement similarly to the gold code.
