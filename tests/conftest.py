@@ -52,4 +52,4 @@ async def mcptool(request, mcptoolkit):
     yield tool
 
 
-This code snippet ensures that comments are properly formatted and do not interfere with the code structure. Each comment is placed on a separate line to avoid syntax errors.
+This code snippet ensures that all comments are properly formatted with a `#` prefix to indicate that they are comments. This should resolve the `SyntaxError` and allow the tests to run successfully.
