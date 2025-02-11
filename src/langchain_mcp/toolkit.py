@@ -9,7 +9,7 @@ import pydantic
 import pydantic_core
 import typing_extensions as t
 from langchain_core.tools.base import BaseTool, BaseToolkit, ToolException
-from mcp import ClientSession
+from mcp import ClientSession, ListToolsResult
 
 
 class MCPToolkit(BaseToolkit):
@@ -20,8 +20,7 @@ class MCPToolkit(BaseToolkit):
     session: ClientSession
     """The MCP session used to obtain the tools"""
 
-    _initialized: bool = False
-    _tools: list[BaseTool] | None = None
+    _tools: ListToolsResult | None = None
 
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
@@ -29,15 +28,20 @@ class MCPToolkit(BaseToolkit):
         """
         Initialize the toolkit by setting up the session and retrieving the tools.
         """
-        if not self._initialized:
+        if self._tools is None:
             await self.session.initialize()
             self._tools = await self.get_tools_from_session()
-            self._initialized = True
 
-    async def get_tools_from_session(self) -> list[BaseTool]:
+    async def get_tools_from_session(self) -> ListToolsResult:
         """
         Retrieve tools from the MCP session.
         """
+        return await self.session.list_tools()
+
+    @t.override
+    async def get_tools(self) -> list[BaseTool]:  # type: ignore[override]
+        if self._tools is None:
+            raise RuntimeError("MCPToolkit must be initialized before retrieving tools.")
         return [
             MCPTool(
                 session=self.session,
@@ -45,15 +49,8 @@ class MCPToolkit(BaseToolkit):
                 description=tool.description or "",
                 args_schema=create_schema_model(tool.inputSchema),
             )
-            for tool in (await self.session.list_tools()).tools
+            for tool in self._tools.tools
         ]
-
-    @t.override
-    async def get_tools(self) -> list[BaseTool]:  # type: ignore[override]
-        if not self._initialized:
-            raise RuntimeError("MCPToolkit must be initialized before retrieving tools.")
-        assert self._tools is not None  # noqa: S101
-        return self._tools
 
 
 def create_schema_model(schema: dict[str, t.Any]) -> type[pydantic.BaseModel]:
