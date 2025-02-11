@@ -12,14 +12,16 @@
 import asyncio
 import pathlib
 import sys
+from typing import List
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from langchain_mcp import MCPToolkit
+from langchain_core.tools import BaseTool
 
 
 @pytest.fixture(scope="module")
@@ -35,18 +37,23 @@ async def toolkit():
             yield toolkit
 
 
-async def main(prompt: str, toolkit: MCPToolkit) -> None:
-    model = ChatGroq(model="llama-3.1-8b-instant")  # requires GROQ_API_KEY
-    tools = await toolkit.get_tools()
-    tools_map = {tool.name: tool for tool in tools}
+async def run(prompt: str, tools: List[BaseTool]) -> str:
+    model = ChatGroq(model="llama-3.1-8b-instant", stop_sequences=None)  # requires GROQ_API_KEY
     tools_model = model.bind_tools(tools)
-    messages = [HumanMessage(prompt)]
+    messages: List[BaseMessage] = [HumanMessage(prompt)]
     messages.append(await tools_model.ainvoke(messages))
+    tools_map = {tool.name: tool for tool in tools}
     for tool_call in messages[-1].tool_calls:
         selected_tool = tools_map[tool_call["name"].lower()]
         tool_msg = await selected_tool.ainvoke(tool_call)
         messages.append(tool_msg)
     result = await (tools_model | StrOutputParser()).ainvoke(messages)
+    return result
+
+
+async def main(prompt: str, toolkit: MCPToolkit) -> None:
+    tools = await toolkit.get_tools()
+    result = await run(prompt, tools)
     print(result)
 
 
