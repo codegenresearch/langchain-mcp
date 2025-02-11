@@ -30,13 +30,7 @@ class MCPToolkit(BaseToolkit):
         """
         if self._tools is None:
             await self.session.initialize()
-            self._tools = await self.get_tools_from_session()
-
-    async def get_tools_from_session(self) -> ListToolsResult:
-        """
-        Retrieve tools from the MCP session.
-        """
-        return await self.session.list_tools()
+            self._tools = await self.session.list_tools()
 
     @t.override
     def get_tools(self) -> list[BaseTool]:  # type: ignore[override]
