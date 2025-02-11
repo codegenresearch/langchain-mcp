@@ -14,7 +14,7 @@ import pathlib
 import sys
 import typing as t
 
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
 from mcp import ClientSession, StdioServerParameters
@@ -24,27 +24,29 @@ from langchain_mcp import MCPToolkit
 from langchain_core.tools import BaseTool
 
 
-async def run(prompt: str, tools: t.List[BaseTool], model: ChatGroq) -> str:
-    messages: t.List[HumanMessage | AIMessage] = [HumanMessage(prompt)]
+async def run(tools: t.List[BaseTool], prompt: str) -> str:
+    model = ChatGroq(model="llama-3.1-8b-instant", stop_sequences=None)  # requires GROQ_API_KEY
+    messages: t.List[BaseMessage] = [HumanMessage(prompt)]
     tools_model = model.bind_tools(tools)
     ai_message = t.cast(AIMessage, await tools_model.ainvoke(messages))
     messages.append(ai_message)
     
+    tools_map = {tool.name.lower(): tool for tool in tools}
+    
     for tool_call in ai_message.tool_calls:
         tool_name = tool_call["name"].lower()
-        selected_tool = next((tool for tool in tools if tool.name.lower() == tool_name), None)
+        selected_tool = tools_map.get(tool_name)
         if selected_tool:
             tool_msg = await selected_tool.ainvoke(tool_call)
             messages.append(tool_msg)
         else:
             raise ValueError(f"Tool {tool_name} not found.")
     
-    result = await (tools_model | StrOutputParser()).ainvoke(messages)
-    return result
+    response = await (tools_model | StrOutputParser()).ainvoke(messages)
+    return response
 
 
 async def main(prompt: str) -> None:
-    model = ChatGroq(model="llama-3.1-8b-instant", stop_sequences=None)  # requires GROQ_API_KEY
     server_params = StdioServerParameters(
         command="npx",
         args=["-y", "@modelcontextprotocol/server-filesystem", str(pathlib.Path(__file__).parent.parent)],
@@ -52,9 +54,10 @@ async def main(prompt: str) -> None:
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
             toolkit = MCPToolkit(session=session)
+            await toolkit.initialize()
             tools = await toolkit.get_tools()
-            result = await run(prompt, tools, model)
-            print(result)
+            response = await run(tools, prompt)
+            print(response)
 
 
 if __name__ == "__main__":
