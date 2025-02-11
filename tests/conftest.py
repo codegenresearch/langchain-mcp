@@ -12,8 +12,8 @@ from langchain_mcp import MCPToolkit
 
 
 @pytest.fixture(scope="class")
-def mcptoolkit(request) -> MCPToolkit:
-    session_mock: ClientSession = mock.AsyncMock(spec=ClientSession)
+def mcptoolkit(request):
+    session_mock = mock.AsyncMock(spec=ClientSession)
     session_mock.list_tools.return_value = ListToolsResult(
         tools=[
             Tool(
@@ -38,7 +38,7 @@ def mcptoolkit(request) -> MCPToolkit:
         content=[TextContent(type="text", text="MIT License\n\nCopyright (c) 2024 Andrew Wason\n")],
         isError=False,
     )
-    toolkit: MCPToolkit = MCPToolkit(session=session_mock)
+    toolkit = MCPToolkit(session=session_mock)
     toolkit.initialize_tools()  # Ensure the toolkit is initialized
     yield toolkit
     if issubclass(request.cls, ToolsIntegrationTests):
@@ -46,7 +46,8 @@ def mcptoolkit(request) -> MCPToolkit:
 
 
 @pytest.fixture(scope="class")
-async def mcptool(request, mcptoolkit: MCPToolkit) -> Tool:
-    tool: Tool = (await mcptoolkit.get_tools())[0]
+async def mcptool(request, mcptoolkit):
+    await mcptoolkit.initialize()  # Initialize the toolkit
+    tool = (await mcptoolkit.get_tools())[0]
     request.cls.tool = tool
-    return tool
+    yield tool
