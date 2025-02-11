@@ -49,6 +49,7 @@ class MCPToolkit(BaseToolkit):
                 description=tool.description or "",
                 args_schema=create_schema_model(tool.inputSchema),
             )
+            # list_tools returns a PaginatedResult, but I don't see a way to pass the cursor to retrieve more tools
             for tool in self._tools.tools
         ]
 
