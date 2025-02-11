@@ -3,12 +3,10 @@
 
 import asyncio
 import warnings
-from collections.abc import Callable
 from typing import Any, Type
 
 import pydantic
 import pydantic_core
-import typing_extensions as t
 from langchain_core.tools.base import BaseTool, BaseToolkit, ToolException
 from mcp import ClientSession, ListToolsResult, Tool
 from mcp.types import CallToolResult, TextContent
@@ -42,7 +40,7 @@ class MCPToolkit(BaseToolkit):
     @t.override
     async def get_tools(self) -> list[BaseTool]:
         if self._tools is None:
-            raise RuntimeError("Toolkit must be initialized first.")
+            raise RuntimeError("Toolkit must be initialized before retrieving tools.")
         # list_tools returns a PaginatedResult, but I don't see a way to pass the cursor to retrieve more tools
         return [
             MCPTool(
@@ -55,7 +53,7 @@ class MCPToolkit(BaseToolkit):
         ]
 
 
-def create_schema_model(schema: dict[str, t.Any]) -> type[pydantic.BaseModel]:
+def create_schema_model(schema: dict[str, Any]) -> Type[pydantic.BaseModel]:
     # Create a new model class that returns our JSON schema.
     # LangChain requires a BaseModel class.
     class Schema(pydantic.BaseModel):
@@ -69,7 +67,7 @@ def create_schema_model(schema: dict[str, t.Any]) -> type[pydantic.BaseModel]:
             ref_template: str = pydantic.json_schema.DEFAULT_REF_TEMPLATE,
             schema_generator: Type[pydantic.json_schema.GenerateJsonSchema] = pydantic.json_schema.GenerateJsonSchema,
             mode: pydantic.json_schema.JsonSchemaMode = "validation",
-        ) -> dict[str, t.Any]:
+        ) -> dict[str, Any]:
             return schema
 
     return Schema
@@ -88,7 +86,7 @@ class MCPTool(BaseTool):
         session: ClientSession,
         name: str,
         description: str,
-        args_schema: type[pydantic.BaseModel],
+        args_schema: Type[pydantic.BaseModel],
     ):
         super().__init__(name=name, description=description, args_schema=args_schema)
         self.session = session
@@ -111,6 +109,6 @@ class MCPTool(BaseTool):
 
     @t.override
     @property
-    def tool_call_schema(self) -> type[pydantic.BaseModel]:
+    def tool_call_schema(self) -> Type[pydantic.BaseModel]:
         assert self.args_schema is not None  # noqa: S101
         return self.args_schema
