@@ -12,7 +12,7 @@ from langchain_mcp import MCPToolkit
 
 
 @pytest.fixture(scope="class")
-def mcptoolkit() -> MCPToolkit:
+def mcptoolkit(request) -> MCPToolkit:
     session_mock: ClientSession = mock.AsyncMock(spec=ClientSession)
     session_mock.list_tools.return_value = ListToolsResult(
         tools=[
@@ -39,7 +39,10 @@ def mcptoolkit() -> MCPToolkit:
         isError=False,
     )
     toolkit: MCPToolkit = MCPToolkit(session=session_mock)
-    return toolkit
+    toolkit.initialize_tools()  # Ensure the toolkit is initialized
+    yield toolkit
+    if issubclass(request.cls, ToolsIntegrationTests):
+        session_mock.call_tool.assert_called_with("read_file", arguments={"path": "LICENSE"})
 
 
 @pytest.fixture(scope="class")
