@@ -34,7 +34,6 @@ class MCPToolkit(BaseToolkit):
     async def initialize(self) -> None:
         """
         Initialize the toolkit by fetching tools from the MCP session.
-        This method ensures that the session is initialized and the tools are loaded.
         """
         if self._tools is None:
             await self.session.initialize()
@@ -44,6 +43,7 @@ class MCPToolkit(BaseToolkit):
     async def get_tools(self) -> list[BaseTool]:
         if self._tools is None:
             raise RuntimeError("Must initialize the toolkit first.")
+        # list_tools returns a PaginatedResult, but I don't see a way to pass the cursor to retrieve more tools
         return [
             MCPTool(
                 session=self.session,
@@ -96,7 +96,7 @@ class MCPTool(BaseTool):
     @t.override
     def _run(self, *args: Any, **kwargs: Any) -> Any:
         warnings.warn(
-            "Invoke this tool asynchronously using `ainvoke`. This method exists only to satisfy standard tests.",
+            "Invoke this tool asynchronously using `ainvoke`. This method exists only to satisfy tests.",
             stacklevel=1,
         )
         return asyncio.run(self._arun(*args, **kwargs))
