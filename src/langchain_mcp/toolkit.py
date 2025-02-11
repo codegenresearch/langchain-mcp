@@ -4,7 +4,7 @@
 import asyncio
 import warnings
 from collections.abc import Callable
-from typing import Any, Optional, Type
+from typing import Any, Type
 
 import pydantic
 import pydantic_core
@@ -34,6 +34,7 @@ class MCPToolkit(BaseToolkit):
     async def initialize(self) -> None:
         """
         Initialize the toolkit by fetching tools from the MCP session.
+        This method ensures that the session is initialized and the tools are loaded.
         """
         if self._tools is None:
             await self.session.initialize()
@@ -45,7 +46,6 @@ class MCPToolkit(BaseToolkit):
             raise RuntimeError("Must initialize the toolkit first.")
         return [
             MCPTool(
-                toolkit=self,
                 session=self.session,
                 name=tool.name,
                 description=tool.description or "",
@@ -80,20 +80,17 @@ class MCPTool(BaseTool):
     MCP server tool
     """
 
-    toolkit: MCPToolkit
     session: ClientSession
     handle_tool_error: bool | str | Callable[[ToolException], str] | None = True
 
     def __init__(
         self,
-        toolkit: MCPToolkit,
         session: ClientSession,
         name: str,
         description: str,
         args_schema: type[pydantic.BaseModel],
     ):
         super().__init__(name=name, description=description, args_schema=args_schema)
-        self.toolkit = toolkit
         self.session = session
 
     @t.override
@@ -105,7 +102,7 @@ class MCPTool(BaseTool):
         return asyncio.run(self._arun(*args, **kwargs))
 
     @t.override
-    async def _arun(self, *args: Any, **kwargs: Any) -> str:
+    async def _arun(self, *args: Any, **kwargs: Any) -> t.Any:
         result: CallToolResult = await self.session.call_tool(self.name, arguments=kwargs)
         content: str = pydantic_core.to_json(result.content).decode()
         if result.isError:
