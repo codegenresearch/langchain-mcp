@@ -39,7 +39,7 @@ class MCPToolkit(BaseToolkit):
         return await self.session.list_tools()
 
     @t.override
-    async def get_tools(self) -> list[BaseTool]:  # type: ignore[override]
+    def get_tools(self) -> list[BaseTool]:  # type: ignore[override]
         if self._tools is None:
             raise RuntimeError("MCPToolkit must be initialized before retrieving tools.")
         return [
