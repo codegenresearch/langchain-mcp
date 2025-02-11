@@ -39,7 +39,6 @@ def mcptoolkit(request):
         isError=False,
     )
     toolkit = MCPToolkit(session=session_mock)
-    request.cls.toolkit = toolkit
     yield toolkit
     if issubclass(request.cls, ToolsIntegrationTests):
         session_mock.call_tool.assert_called_with("read_file", arguments={"path": "LICENSE"})
@@ -54,6 +53,9 @@ async def mcptool(request, mcptoolkit):
 
 
 def invoke_tool(tool, arguments):
-    if not tool:
+    if tool is None:
         raise ValueError("Tool is not initialized.")
     return tool.invoke(arguments)
+
+
+This code snippet addresses the feedback by ensuring the toolkit is yielded after setup, accessing tools directly, and maintaining consistent error handling.
