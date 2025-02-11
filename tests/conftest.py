@@ -50,10 +50,8 @@ def mcptoolkit(request):
 async def mcptool(request, mcptoolkit):
     if not hasattr(request.cls, 'toolkit'):
         raise RuntimeError("Toolkit is not initialized.")
-    tools = await mcptoolkit.get_tools()
-    if not tools:
-        raise RuntimeError("No tools found in the toolkit.")
-    tool = tools[0]
+    await mcptoolkit.initialize()  # Ensure the toolkit is initialized
+    tool = (await mcptoolkit.get_tools())[0]  # Directly access the first tool
     request.cls.tool = tool
     yield tool
 
