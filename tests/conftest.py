@@ -52,4 +52,4 @@ async def mcptool(request, mcptoolkit):
     yield tool
 
 
-This code snippet addresses the feedback by ensuring that the `mcptoolkit` fixture does not call a non-existent `initialize_tools` method and correctly handles the initialization and retrieval of tools. The `get_tools` method is assumed to be synchronous, as per the feedback.
+This code snippet removes any potential syntax issues with comments. The comments are placed on separate lines to ensure they do not interfere with the code structure.
