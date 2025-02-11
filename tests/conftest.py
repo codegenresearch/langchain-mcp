@@ -52,4 +52,4 @@ async def mcptool(request, mcptoolkit):
     yield tool
 
 
-This code snippet removes any potential syntax issues with comments. The comments are placed on separate lines to ensure they do not interfere with the code structure.
+This code snippet ensures that comments are properly formatted and do not interfere with the code structure. Each comment is placed on a separate line to avoid syntax errors.
