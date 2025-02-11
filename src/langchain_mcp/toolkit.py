@@ -89,7 +89,7 @@ class MCPTool(BaseTool):
     @t.override
     def _run(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         warnings.warn(
-            "Invoke this tool asynchronously using `ainvoke`. This method exists only to satisfy tests.", stacklevel=1
+            "Invoke this tool asynchronously using `ainvoke`. This method exists only to satisfy tests.", stacklevel=2
         )
         return asyncio.run(self._arun(*args, **kwargs))
 
