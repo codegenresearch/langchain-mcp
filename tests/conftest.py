@@ -39,7 +39,6 @@ def mcptoolkit(request):
         isError=False,
     )
     toolkit = MCPToolkit(session=session_mock)
-    toolkit.initialize_tools()  # Ensure the toolkit is initialized
     yield toolkit
     if issubclass(request.cls, ToolsIntegrationTests):
         session_mock.call_tool.assert_called_with("read_file", arguments={"path": "LICENSE"})
@@ -48,6 +47,9 @@ def mcptoolkit(request):
 @pytest.fixture(scope="class")
 async def mcptool(request, mcptoolkit):
     await mcptoolkit.initialize()  # Initialize the toolkit
-    tool = (await mcptoolkit.get_tools())[0]
+    tool = mcptoolkit.get_tools()[0]  # Assuming get_tools is synchronous
     request.cls.tool = tool
     yield tool
+
+
+This code snippet addresses the feedback by ensuring that the `mcptoolkit` fixture does not call a non-existent `initialize_tools` method and correctly handles the initialization and retrieval of tools. The `get_tools` method is assumed to be synchronous, as per the feedback.
