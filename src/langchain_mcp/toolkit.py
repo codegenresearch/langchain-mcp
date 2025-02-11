@@ -3,10 +3,12 @@
 
 import asyncio
 import warnings
-from typing import Any, Type
+from collections.abc import Callable
+from typing import Any
 
 import pydantic
 import pydantic_core
+import typing_extensions as t
 from langchain_core.tools.base import BaseTool, BaseToolkit, ToolException
 from mcp import ClientSession, ListToolsResult, Tool
 from mcp.types import CallToolResult, TextContent
@@ -53,7 +55,7 @@ class MCPToolkit(BaseToolkit):
         ]
 
 
-def create_schema_model(schema: dict[str, Any]) -> Type[pydantic.BaseModel]:
+def create_schema_model(schema: dict[str, Any]) -> t.type[pydantic.BaseModel]:
     # Create a new model class that returns our JSON schema.
     # LangChain requires a BaseModel class.
     class Schema(pydantic.BaseModel):
@@ -65,7 +67,7 @@ def create_schema_model(schema: dict[str, Any]) -> Type[pydantic.BaseModel]:
             cls,
             by_alias: bool = True,
             ref_template: str = pydantic.json_schema.DEFAULT_REF_TEMPLATE,
-            schema_generator: Type[pydantic.json_schema.GenerateJsonSchema] = pydantic.json_schema.GenerateJsonSchema,
+            schema_generator: t.type[pydantic.json_schema.GenerateJsonSchema] = pydantic.json_schema.GenerateJsonSchema,
             mode: pydantic.json_schema.JsonSchemaMode = "validation",
         ) -> dict[str, Any]:
             return schema
@@ -86,13 +88,13 @@ class MCPTool(BaseTool):
         session: ClientSession,
         name: str,
         description: str,
-        args_schema: Type[pydantic.BaseModel],
+        args_schema: t.type[pydantic.BaseModel],
     ):
         super().__init__(name=name, description=description, args_schema=args_schema)
         self.session = session
 
     @t.override
-    def _run(self, *args: Any, **kwargs: Any) -> Any:
+    def _run(self, *args: Any, **kwargs: Any) -> t.Any:
         warnings.warn(
             "Invoke this tool asynchronously using `ainvoke`. This method exists only to satisfy tests.",
             stacklevel=1,
@@ -100,7 +102,7 @@ class MCPTool(BaseTool):
         return asyncio.run(self._arun(*args, **kwargs))
 
     @t.override
-    async def _arun(self, *args: Any, **kwargs: Any) -> str:
+    async def _arun(self, *args: Any, **kwargs: Any) -> t.Any:
         result: CallToolResult = await self.session.call_tool(self.name, arguments=kwargs)
         content: str = pydantic_core.to_json(result.content).decode()
         if result.isError:
@@ -109,6 +111,6 @@ class MCPTool(BaseTool):
 
     @t.override
     @property
-    def tool_call_schema(self) -> Type[pydantic.BaseModel]:
+    def tool_call_schema(self) -> t.type[pydantic.BaseModel]:
         assert self.args_schema is not None  # noqa: S101
         return self.args_schema
