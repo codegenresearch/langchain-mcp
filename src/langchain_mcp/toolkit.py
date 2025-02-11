@@ -21,26 +21,39 @@ class MCPToolkit(BaseToolkit):
     """The MCP session used to obtain the tools"""
 
     _initialized: bool = False
+    _tools: list[BaseTool] | None = None
 
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
     async def initialize(self) -> None:
+        """
+        Initialize the toolkit by setting up the session and retrieving the tools.
+        """
         if not self._initialized:
             await self.session.initialize()
+            self._tools = await self.get_tools_from_session()
             self._initialized = True
 
-    @t.override
-    async def get_tools(self) -> list[BaseTool]:  # type: ignore[override]
-        await self.initialize()
+    async def get_tools_from_session(self) -> list[BaseTool]:
+        """
+        Retrieve tools from the MCP session.
+        """
         return [
             MCPTool(
-                toolkit=self,
+                session=self.session,
                 name=tool.name,
                 description=tool.description or "",
                 args_schema=create_schema_model(tool.inputSchema),
             )
             for tool in (await self.session.list_tools()).tools
         ]
+
+    @t.override
+    async def get_tools(self) -> list[BaseTool]:  # type: ignore[override]
+        if not self._initialized:
+            raise RuntimeError("MCPToolkit must be initialized before retrieving tools.")
+        assert self._tools is not None  # noqa: S101
+        return self._tools
 
 
 def create_schema_model(schema: dict[str, t.Any]) -> type[pydantic.BaseModel]:
@@ -68,8 +81,18 @@ class MCPTool(BaseTool):
     MCP server tool
     """
 
-    toolkit: MCPToolkit
+    session: ClientSession
     handle_tool_error: bool | str | Callable[[ToolException], str] | None = True
+
+    def __init__(
+        self,
+        session: ClientSession,
+        name: str,
+        description: str,
+        args_schema: type[pydantic.BaseModel],
+    ):
+        super().__init__(name=name, description=description, args_schema=args_schema)
+        self.session = session
 
     @t.override
     def _run(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
@@ -80,7 +103,7 @@ class MCPTool(BaseTool):
 
     @t.override
     async def _arun(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
-        result = await self.toolkit.session.call_tool(self.name, arguments=kwargs)
+        result = await self.session.call_tool(self.name, arguments=kwargs)
         content = pydantic_core.to_json(result.content).decode()
         if result.isError:
             raise ToolException(content)
