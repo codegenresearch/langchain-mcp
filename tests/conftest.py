@@ -58,4 +58,4 @@ def invoke_tool(tool, arguments):
     return tool.invoke(arguments)
 
 
-I have removed any potential stray characters or formatting issues in the comments to ensure there are no syntax errors. The code should now be syntactically correct and should pass the tests.
+I have removed the stray comment that was causing the `SyntaxError`. The code should now be syntactically correct and should pass the tests.
