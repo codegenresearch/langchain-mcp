@@ -9,11 +9,10 @@
 # ]
 # ///
 
-
 import asyncio
 import pathlib
 import sys
-from typing import List, Dict, Optional
+import typing as t
 
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.output_parsers import StrOutputParser
@@ -22,26 +21,23 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from langchain_mcp import MCPToolkit
+from langchain_core.tools import BaseTool
 
 
-async def initialize_tools(session: ClientSession) -> Dict[str, 'Tool']:
-    toolkit = MCPToolkit(session=session)
-    tools = await toolkit.get_tools()
-    return {tool.name: tool for tool in tools}
-
-
-async def run(prompt: str, tools: Dict[str, 'Tool'], model: ChatGroq) -> str:
-    messages: List[HumanMessage | AIMessage] = [HumanMessage(prompt)]
-    tools_model = model.bind_tools(list(tools.values()))
-    messages.append(await tools_model.ainvoke(messages))
+async def run(prompt: str, tools: t.List[BaseTool], model: ChatGroq) -> str:
+    messages: t.List[HumanMessage | AIMessage] = [HumanMessage(prompt)]
+    tools_model = model.bind_tools(tools)
+    ai_message = t.cast(AIMessage, await tools_model.ainvoke(messages))
+    messages.append(ai_message)
     
-    for tool_call in messages[-1].tool_calls:
-        selected_tool = tools.get(tool_call["name"].lower())
+    for tool_call in ai_message.tool_calls:
+        tool_name = tool_call["name"].lower()
+        selected_tool = next((tool for tool in tools if tool.name.lower() == tool_name), None)
         if selected_tool:
             tool_msg = await selected_tool.ainvoke(tool_call)
             messages.append(tool_msg)
         else:
-            raise ValueError(f"Tool {tool_call['name']} not found.")
+            raise ValueError(f"Tool {tool_name} not found.")
     
     result = await (tools_model | StrOutputParser()).ainvoke(messages)
     return result
@@ -55,7 +51,8 @@ async def main(prompt: str) -> None:
     )
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
-            tools = await initialize_tools(session)
+            toolkit = MCPToolkit(session=session)
+            tools = await toolkit.get_tools()
             result = await run(prompt, tools, model)
             print(result)
 
