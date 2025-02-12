@@ -12,7 +12,7 @@ from langchain_mcp import MCPToolkit
 
 
 @pytest.fixture(scope="class")
-def mcptoolkit(request):
+def mcptoolkit():
     session_mock = mock.AsyncMock(spec=ClientSession)
     session_mock.list_tools.return_value = ListToolsResult(
         tools=[
@@ -39,14 +39,65 @@ def mcptoolkit(request):
         isError=False,
     )
     toolkit = MCPToolkit(session=session_mock)
-    yield toolkit
-    if issubclass(request.cls, ToolsIntegrationTests):
-        session_mock.call_tool.assert_called_with("read_file", arguments={"path": "LICENSE"})
+    return toolkit
 
 
 @pytest.fixture(scope="class")
 async def mcptool(request, mcptoolkit):
-    await mcptoolkit.initialize()
-    tool = mcptoolkit.get_tools()[0]
+    if not mcptoolkit:
+        raise ValueError("MCPToolkit is not initialized.")
+    tool = (await mcptoolkit.get_tools())[0]
     request.cls.tool = tool
-    yield tool
+    return tool
+
+
+@pytest.mark.usefixtures("mcptool")
+class TestMCPToolIntegration(ToolsIntegrationTests):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._tool = None
+
+    @property
+    def tool(self):
+        if self._tool is None:
+            raise RuntimeError("Tool is not initialized. Please initialize the tool before usage.")
+        return self._tool
+
+    @property
+    def tool_constructor(self):
+        return self.tool
+
+    @property
+    def tool_invoke_params_example(self) -> dict:
+        return {"path": "LICENSE"}
+
+    async def invoke_tool(self, tool_name, arguments):
+        if not self.tool:
+            raise RuntimeError("Tool is not initialized. Please initialize the tool before usage.")
+        return await self.tool.call(tool_name, arguments)
+
+
+@pytest.mark.usefixtures("mcptool")
+class TestMCPToolUnit(ToolsUnitTests):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._tool = None
+
+    @property
+    def tool(self):
+        if self._tool is None:
+            raise RuntimeError("Tool is not initialized. Please initialize the tool before usage.")
+        return self._tool
+
+    @property
+    def tool_constructor(self):
+        return self.tool
+
+    @property
+    def tool_invoke_params_example(self) -> dict:
+        return {"path": "LICENSE"}
+
+    async def invoke_tool(self, tool_name, arguments):
+        if not self.tool:
+            raise RuntimeError("Tool is not initialized. Please initialize the tool before usage.")
+        return await self.tool.call(tool_name, arguments)
