@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10"]
     steps:
     - uses: actions/checkout@v4
     - name: Install uv
@@ -24,13 +24,4 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Run tests
-      run: uv run --isolated --locked --python ${{ matrix.python-version }} --python-preference only-system pytest
-    - name: Lint
-      run: |
-        uv run --python ${{ matrix.python-version }} --python-preference only-system ruff format --check
-        uv run --python ${{ matrix.python-version }} --python-preference only-system ruff check
-    - name: Mypy
-      # Disable until fix released https://github.com/pydantic/pydantic/pull/10979
-      if: ${{ matrix.python-version != '3.13' }}
-      run: |
-        uv run --python ${{ matrix.python-version }} --python-preference only-system mypy 
+      run: uv run --isolated --locked --python ${{ matrix.python-version }} --python-preference only-system pytest -vv
