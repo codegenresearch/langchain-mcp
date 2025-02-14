@@ -39,6 +39,7 @@ def mcptoolkit(request):
         isError=False,
     )
     toolkit = MCPToolkit(session=session_mock)
+    request.cls.toolkit = toolkit
     yield toolkit
     if issubclass(request.cls, ToolsIntegrationTests):
         session_mock.call_tool.assert_called_with("read_file", arguments={"path": "LICENSE"})
@@ -46,7 +47,9 @@ def mcptoolkit(request):
 
 @pytest.fixture(scope="class")
 async def mcptool(request, mcptoolkit):
-    await mcptoolkit.initialize()
-    tool = mcptoolkit.get_tools()[0]
+    if not hasattr(request.cls, "toolkit"):
+        raise ValueError("Toolkit not initialized. Please initialize the toolkit before usage.")
+    toolkit = request.cls.toolkit
+    tool = (await toolkit.get_tools())[0]
     request.cls.tool = tool
     yield tool
